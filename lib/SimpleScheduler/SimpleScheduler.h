@@ -5,11 +5,17 @@
 
 /* VERY simple task scheduling */
 class Task {
+    /* The first task in the linked list */
+    static Task* first;
+
+    /* The current task to execute */
+    static Task* currentTask;
+
     /* Pointer to next task */
     Task* next;
 
     /* The interval and timeStamp of execution */
-    uint32_t interval;
+    uint32_t inter;
 
     /* The timeStamp of execution */
     uint32_t nextExecution;
@@ -18,30 +24,83 @@ class Task {
     bool enabled;
 
     /* The function to be executed */
-    void (*function) (void);
+    void (*func) (void);
 
 public:
 
-    /* Contructor */
-    Task(void (*func) (void), uint32_t inter, bool enabled = true);
+    /* Constructor */
+    Task(void (*function) (void), uint32_t interval, bool enable = true) {
+        inter = interval;
+        func = function;
+        enabled = enable;
+        nextExecution = millis() + interval;
+        next = first;
+        first = this;
+    }
 
     /* Used to run the tasks */
-    static void runTasks();
+    static void runTasks() {
+        /* If no task, start over with the list */
+        if (currentTask == 0) {
+            currentTask = first;
+            return;
+        }
+
+        /* Run the task when enabled and time is reached */
+        if (currentTask->enabled && (millis() > currentTask->nextExecution)) {
+            currentTask->func();
+            currentTask->nextExecution += currentTask->inter;
+        }
+
+        /* Jump to next task */
+        currentTask = currentTask->next;
+    }
 
     /* Enable or disable the task */
-    void enable();
-    void disable();
+    void enable() {
+        /* Only reset time if not enabled */
+        if(!enabled) {
+            enabled = true;
+            nextExecution = millis();
+        }
+    }
 
-    /* Set and get execution interval */
-    void setInterval(uint32_t inter);
-    uint32_t getInterval();
+    /* Disable the task */
+    void disable() {
+        enabled = false;
+    }
+
+    /* Returns true, if the task is enabled */
+    bool isEnabled() {
+        return enabled;
+    }
+
+    /* Set execution interval */
+    void setInterval(uint32_t interval) {
+        /* Update execution time correctly */
+        nextExecution += interval - inter;
+        interval = inter;
+    }
+
+    /* Get execution interval */
+    uint32_t getInterval() {
+        return inter;
+    }
 
     /* Execute the task again after a certain time */
-    void executeIn(uint32_t milliseconds);
+    void executeIn(uint32_t milliseconds) {
+        nextExecution = millis() + milliseconds;
+        enabled = true;
+    }
 
     /* Deleting is not implemented */
-    ~Task();
-
+    ~Task() {
+        Serial.println("Delete unimplemented. Use 'disable()'");
+    }
 };
+
+/* Initialize static members */
+Task* Task::first = 0;
+Task* Task::currentTask = 0;
 
 #endif
