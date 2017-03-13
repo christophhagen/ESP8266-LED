@@ -42,10 +42,13 @@ Setting data:
 
 ### UDP
 
-| Function       | Packet length | Included data               |
-| -------------- |:------------- |:--------------------------- |
-| Set brightness | 1 byte        | brightness (0-255)          |
-| Set HSB color  | 3 byte        | hue, saturation, brightness |
+| Function       | Packet length | Included data                                  |
+| -------------- |:------------- |:---------------------------------------------- |
+| Set on/off     | 1 byte        | on: >0, off: 0                                 |
+| Set hue        | 2 byte        | First byte: 0, Second byte: hue (0-255)        |
+| Set saturation | 2 byte        | First byte: 1, Second byte: saturation (0-255) |
+| Set brightness | 2 byte        | First byte: 2, Second byte: brightness (0-255) |
+| Set HSB color  | 3 byte        | hue, saturation, brightness (each 1 byte)      |
 
 
 
