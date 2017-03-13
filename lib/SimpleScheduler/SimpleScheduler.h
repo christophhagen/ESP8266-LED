@@ -52,13 +52,11 @@ public:
             currentTask->nextExecution += currentTask->inter;
         }
 
-        /* Jump to next task */
         currentTask = currentTask->next;
     }
 
     /* Enable or disable the task */
     void enable() {
-        /* Only reset time if not enabled */
         if(!enabled) {
             enabled = true;
             nextExecution = millis();
@@ -77,7 +75,6 @@ public:
 
     /* Set execution interval */
     void setInterval(uint32_t interval) {
-        /* Update execution time correctly */
         nextExecution += interval - inter;
         interval = inter;
     }
