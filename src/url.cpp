@@ -66,34 +66,34 @@ void respondStatus() {
     server.send(200, "text/plain", endHSV.value == 0 ? "0" : "1");
 }
 
+void respondParam(uint8_t value) {
+    char mess[4];
+    sprintf(mess, "%d", value);
+    server.send(200, "text/plain", mess);
+}
+
 /**
 Return the current hsv hue of the strip.
-The returned plaintext is from 0 to 255 in 8 bit hex format
+The returned plaintext is from 0 to 255
 */
 void respondHue() {
-    char mess[4];
-    sprintf(mess, "%02x", endHSV.hue);
-    server.send(200, "text/plain", mess);
+    respondParam(endHSV.hue);
 }
 
 /**
 Return the current hsv saturation of the strip.
-The returned plaintext is from 0 to 255 in 8 bit hex format
+The returned plaintext is from 0 to 255
 */
 void respondSaturation() {
-    char mess[4];
-    sprintf(mess, "%02x", endHSV.saturation);
-    server.send(200, "text/plain", mess);
+    respondParam(endHSV.saturation);
 }
 
 /**
 Return the current hsv brightness of the strip.
-The returned plaintext is the brightness from 0 to 255 in 8 bit hex format
+The returned plaintext is the brightness from 0 to 255
 */
 void respondBrightness() {
-    char mess[4];
-    sprintf(mess, "%02x", endHSV.value);
-    server.send(200, "text/plain", mess);
+    respondParam(endHSV.value);
 }
 
 /**
@@ -106,22 +106,25 @@ void respondColor() {
     server.send(200, "text/plain", mess);
 }
 
+
+void respondSetValue(uint8_t value) {
+    endHSV.value = value;
+    setHSV(endHSV);
+    respondOK();
+}
+
 /**
 Turn the strip on through a url
 */
 void respondSwitchOn() {
-    endHSV.value = 255;
-    setHSV(endHSV);
-    respondOK();
+    respondSetValue(255);
 }
 
 /**
 Turn the strip off through a url
 */
 void respondSwitchOff() {
-    endHSV.value = 0;
-    setHSV(endHSV);
-    respondOK();
+    respondSetValue(0);
 }
 
 /**
@@ -130,19 +133,23 @@ Strip is on -> Strip will be turned off
 Strip is off -> Set to full brightness
 */
 void respondToggle() {
-    endHSV.value = (endHSV.value == 0) ? 255 : 0;
+    respondSetValue(endHSV.value == 0 ? 255 : 0);
+}
+
+
+void respondSetParam(const char* arg, uint8_t type) {
+    endHSV.raw[type] = strtol(server.arg(arg).c_str(), NULL, 16);
     setHSV(endHSV);
     respondOK();
 }
+
 /**
 Sets the hue through a url argument "h"
 The argument is in 8 bit hex format,
 for example: http://192.168.188.75/setHue?h=FF
 */
 void respondSetHue() {
-    endHSV.hue = strtol(server.arg("h").c_str(), NULL, 16);
-    setHSV(endHSV);
-    respondOK();
+    respondSetParam("h", 0);
 }
 
 /**
@@ -151,9 +158,7 @@ The argument is in 8 bit hex format,
 for example: http://192.168.188.75/setSaturation?s=FF
 */
 void respondSetSaturation() {
-    endHSV.saturation = strtol(server.arg("s").c_str(), NULL, 16);
-    setHSV(endHSV);
-    respondOK();
+    respondSetParam("s", 1);
 }
 
 /**
@@ -162,9 +167,7 @@ The argument is in 8 bit hex format,
 for example: http://192.168.188.75/setBrightness?b=FF
 */
 void respondSetBrightness() {
-    endHSV.value = strtol(server.arg("b").c_str(), NULL, 16);
-    setHSV(endHSV);
-    respondOK();
+    respondSetParam("b", 2);
 }
 
 /**

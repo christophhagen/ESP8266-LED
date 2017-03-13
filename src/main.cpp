@@ -88,26 +88,35 @@ void blendColor() {
 
 /**
 Handle all packets received through UDP. A packet can either contain:
- 1 byte: brightness
+ 1 byte: on (>0), off (== 0)
+ 2 byte: (param, value): 0: hue, 1: saturation, 2: brightness
  3 byte: hue, saturation, brightness
 
  Other packets will be ignored
 */
 void receiveUDPPacket() {
     uint16_t bytes = udp.parsePacket();
-    if (bytes == 0) {
-        return;
-    } else if (bytes == 1) {
-        // only brightness received
-        endHSV.value = udp.read();
-        setHSV(endHSV);
-    } else if (bytes == 3) {
+    uint8_t param;
+    switch (bytes) {
+        case 1:
+        endHSV.value = udp.read() > 0 ? 255 : 0;
+        break;
+
+        case 2:
+        param = udp.read();
+        if (param > 2) { return; }
+        endHSV.raw[param] = udp.read();
+        break;
+
+        case 3:
         udp.read((char*) &endHSV, 3); // Read the end color
-        setHSV(endHSV);
-    } else {
+        break;
+
+        default:
         udp.flush();
         return;
     }
+    setHSV(endHSV);
 }
 
 /**
