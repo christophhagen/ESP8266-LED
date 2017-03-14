@@ -50,6 +50,10 @@ Setting data:
 | Set brightness | 2 byte        | First byte: 2, Second byte: brightness (0-255) |
 | Set HSB color  | 3 byte        | hue, saturation, brightness (each 1 byte)      |
 
+## Thanks
 
+This code uses the [FastLED library](fastled.io) to control the LED strip. It's a really cool project and makes my life so much easier.
+
+I'm using a simple [Scheduler](https://github.com/christophhagen/ArduinoScheduler) to execute tasks. Basically just a glorified if/else loop, but maybe usful to someone.
 
 
