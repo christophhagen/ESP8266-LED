@@ -1,6 +1,6 @@
 # ESP8266-LED
 
-A simple program to control an LED strip connected to a ESP8266 chip. Provides a URL interface and a UDP interface to easily set the color of the strip. I use it together with a homebridge plug-in to control my room lighting with Siri.
+A simple program to control an LED strip connected to a ESP8266 chip. Provides a URL interface and a UDP interface to easily set the color of the strip. I use it together with a [homebridge plug-in](https://github.com/christophhagen/homebridge-ESP-HSV) to control my room lighting with Siri.
 
 ## Setup
 
