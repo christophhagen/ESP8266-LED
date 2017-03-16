@@ -47,8 +47,9 @@ uint8_t getEnabled() {
 
 void enable() {
     enabled = 1;
-    endRGB = CRGB(getHSV());
+    endRGB = CRGB(endHSV);
     if (endRGB == CRGB(0,0,0)) { // Set to default if enabled but color is 0
+        endHSV = defaultHSV;
         endRGB = CRGB(defaultHSV);
     }
     blendTask.enable(); // Start blending
