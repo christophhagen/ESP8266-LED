@@ -17,9 +17,16 @@ https://github.com/esp8266/Arduino/blob/master/doc/reference.md
 const char* ssid = WIFI_SSID;
 const char* pass = WIFI_PASSWORD;
 
-WiFiUDP udp;                          // UDP instance to receive colors
-CRGB colors[NR_OF_LEDS];              // Array with colors for the leds
-CHSV endHSV = CHSV(50, 150, 0);       // HSV representation of current color
+WiFiUDP udp;                    // UDP instance to receive colors
+CRGB colors[NR_OF_LEDS];        // Array with colors for the leds
+CHSV endHSV;                    // HSV representation of current color
+CHSV defaultHSV;                // The default color to go to
+
+void printCurrentColor(CRGB color) {
+    char mess[15];
+    sprintf(mess, "%03d,%03d,%03d", color.r, color.g, color.b);
+    Serial.println(mess);
+}
 
 /* Scheduler functions */
 void blendColor();
@@ -31,59 +38,84 @@ Task receiveTask(receiveUDPPacket, 100);
 Task blendTask(blendColor, EX_TIME, false);
 
 /* colors needed for blending */
-CRGB endRGB, count, cur, steps, dir;
+CRGB endRGB, cur;
+uint8_t enabled = 0;
 
-/* Set necessary values for blending and start */
-void setHSV(CHSV color) {
-    // Set end color
-    endRGB = CRGB(color);
+uint8_t getEnabled() {
+    return enabled;
+}
 
-    // Get differences
-    CRGB d;
-    for (uint8_t i = 0; i < 3; i++) {
-        uint8_t c = cur.raw[i];
-        uint8_t e = endRGB.raw[i];
-        //(c > e) ? (d.raw[i] = c - e, dir.raw[i] = 1) : (d.raw[i] = e - c, dir.raw[i] = 0);
-        if (c > e) {
-            d.raw[i] = c - e;
-            dir.raw[i] = 1;
-        } else {
-            d.raw[i] = e - c;
-            dir.raw[i] = 0;
-        }
+void enable() {
+    enabled = 1;
+    endRGB = CRGB(getHSV());
+    if (endRGB == CRGB(0,0,0)) { // Set to default if enabled but color is 0
+        endRGB = CRGB(defaultHSV);
     }
-
-    // Get maximum
-    uint8_t max = (d.r > d.g) ? d.r : d.g;
-    max = (max > d.b) ? max : d.b;
-
-    // Get step size
-    steps.r = (d.r == 0) ? 0 : max / d.r;
-    steps.g = (d.g == 0) ? 0 : max / d.g;
-    steps.b = (d.b == 0) ? 0 : max / d.b;
-
-    count = CRGB(0,0,0); // Set count to zero
     blendTask.enable(); // Start blending
 }
 
-/* This function will be executed in the specified interval */
-void blendColor() {
+void disable() {
+    enabled = 0;
+    endRGB = CRGB(0,0,0);
+    blendTask.enable(); // Start blending
+}
 
+void toggle() {
+    (enabled) ? disable() : enable();
+}
+
+/* Enable or disable the strip
+* 0: turn off
+* 1: turn on
+* other: toggle
+*/
+void setEnable(uint8_t newStatus) {
+    switch (newStatus) {
+        case 0:
+        enable();
+        break;
+
+        case 1:
+        disable();
+        break;
+
+        default:
+        toggle();
+    }
+}
+
+
+/* Set necessary values for blending and start */
+void setHSV(CHSV color) {
+    endHSV = color;
+
+    // Turn strip off, if brightness is 0
+    if (color.value == 0) {
+        disable();
+    } else {
+        endRGB = CRGB(color); // Set end color
+        enable();
+    }
+}
+
+CHSV getHSV() {
+    return endHSV;
+}
+
+/* Small steps towards the end color */
+void blendColor() {
+    // blend rgb, 1 step per channel
     for (uint8_t i = 0; i < 3; i++) {
-        count.raw[i] += 1;
-        // If step count is reached, advance color
-        if (count.raw[i] == steps.raw[i] && cur.raw[i] != endRGB.raw[i]) {
-            cur.raw[i] += (dir.raw[i]) ? -1 : 1;
-            count.raw[i] = 0;
+        if (cur.raw[i] != endRGB.raw[i]) {
+            cur.raw[i] += (cur.raw[i] > endRGB.raw[i]) ? -1 : 1;
         }
     }
+    FastLED.showColor(cur);
+    printCurrentColor(cur);
 
     if (cur == endRGB) { // Check for end of fade
         blendTask.disable();
     }
-
-    FastLED.showColor(cur);
-    return;
 }
 
 /**
@@ -97,37 +129,44 @@ Handle all packets received through UDP. A packet can either contain:
 void receiveUDPPacket() {
     uint16_t bytes = udp.parsePacket();
     uint8_t param;
+    CHSV color = getHSV();
     switch (bytes) {
         case 1:
-        endHSV.value = udp.read() > 0 ? 255 : 0;
+        setEnable(udp.read());
         break;
 
         case 2:
         param = udp.read();
-        if (param > 2) { return; }
-        endHSV.raw[param] = udp.read();
+        if (param > 2) { break; }
+        color.raw[param] = udp.read();
+        setHSV(color);
         break;
 
         case 3:
-        udp.read((char*) &endHSV, 3); // Read the end color
+        udp.read((char*) &color, 3); // Read the end color
+        setHSV(color);
         break;
 
         default:
-        udp.flush();
-        return;
+        break;
     }
-    setHSV(endHSV);
+    udp.flush();
 }
 
 /**
 Set up UDP, WIFI, LEDs, Serial and Web server
 */
 void setup() {
-    Serial.begin(115200);
+    Serial.begin(115200); // For debugging purposes
+    readDefaultColor();
 
-    FastLED.addLeds<STRIP_TYPE, DATA_PIN, RGB>(colors, NR_OF_LEDS);
+    #ifdef CLOCK_PIN
+    FastLED.addLeds<STRIP_TYPE, DATA_PIN, CLOCK_PIN, COLOR_TYPE>(colors, NR_OF_LEDS);
+    #else
+    FastLED.addLeds<STRIP_TYPE, DATA_PIN, COLOR_TYPE>(colors, NR_OF_LEDS);
+    #endif
+
     FastLED.showColor(CRGB(0,0,0));
-
     WiFi.begin(ssid, pass);
     setupServer();
     udp.begin(UDP_DEFAULT_PORT);

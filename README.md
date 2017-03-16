@@ -30,15 +30,16 @@ Getting data:
 
 Setting data:
 
-| Function               | URL              | URL Parameter       |
-| ---------------------- |:---------------- |:------------------- |
-| Set to full brightness | /set/on          | None                |
-| Turn off               | /set/off         | None                |
-| Toggle (Full/off)      | /set/toggle      | None                |
-| Set new hue            | /set/hue         | h = `8 bit HEX`     |
-| Set new saturation     | /set/saturation  | s = `8 bit HEX`     |
-| Set new brightness     | /set/brightness  | b = `8 bit HEX`     |
-| Set new HSB color      | /set/color       | hsb = `3x 8-bit HEX`|
+| Function               | URL               | URL Parameter       |
+| ---------------------- |:----------------- |:------------------- |
+| Set to full brightness | /set/on           | None                |
+| Turn off               | /set/off          | None                |
+| Toggle (Full/off)      | /set/toggle       | None                |
+| Set new hue            | /set/hue          | h = `8 bit HEX`     |
+| Set new saturation     | /set/saturation   | s = `8 bit HEX`     |
+| Set new brightness     | /set/brightness   | b = `8 bit HEX`     |
+| Set new HSB color      | /set/color        | hsb = `3x 8-bit HEX`|
+| Set default color      | /set/defaultColor | hsb = `3x 8-bit HEX`|
 
 ### UDP
 
@@ -54,6 +55,4 @@ Setting data:
 
 This code uses the [FastLED library](fastled.io) to control the LED strip. It's a really cool project and makes my life so much easier.
 
-I'm using a simple [Scheduler](https://github.com/christophhagen/ArduinoScheduler) to execute tasks. Basically just a glorified if/else loop, but maybe usful to someone.
-
-
+I'm using a simple [Scheduler](https://github.com/christophhagen/ArduinoScheduler) to execute tasks. Basically just a glorified if/else loop, but maybe useful to someone.
