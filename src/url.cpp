@@ -66,7 +66,7 @@ Returns if the strip is on or off. Returns "1" if the brightness
 is non-zero, and returns 0, if the brightness is 0.
 */
 void respondStatus() {
-    server.send(200, "text/plain", getEnabled() ? "1" : "0");
+    server.send(200, "text/plain", (getEnabled() == 1) ? "1" : "0");
 }
 
 /* Return the value of a parameter */

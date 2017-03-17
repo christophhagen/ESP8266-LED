@@ -73,11 +73,11 @@ void toggle() {
 void setEnable(uint8_t newStatus) {
     switch (newStatus) {
         case 0:
-        enable();
+        disable();
         break;
 
         case 1:
-        disable();
+        enable();
         break;
 
         default:
@@ -159,6 +159,8 @@ Set up UDP, WIFI, LEDs, Serial and Web server
 */
 void setup() {
     Serial.begin(115200); // For debugging purposes
+    Serial.println("Starting");
+
     readDefaultColor();
 
     #ifdef CLOCK_PIN
