@@ -57,7 +57,7 @@ This code uses the [FastLED library](fastled.io) to control the LED strip. It's 
 
 ## Hardware setup
 
-Have a look here
+Have a look [here](https://github.com/christophhagen/ESP8266-LED/blob/master/hardware.md)
 
 ## Other
 
