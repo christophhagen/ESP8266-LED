@@ -55,4 +55,10 @@ Setting data:
 
 This code uses the [FastLED library](fastled.io) to control the LED strip. It's a really cool project and makes my life so much easier.
 
+## Hardware setup
+
+Have a look here
+
+## Other
+
 I'm using a simple [Scheduler](https://github.com/christophhagen/ArduinoScheduler) to execute tasks. Basically just a glorified if/else loop, but maybe useful to someone.
