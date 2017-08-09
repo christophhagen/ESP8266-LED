@@ -28,13 +28,23 @@ API structure:
 #include <FastLED.h>  /* LED strip control https://github.com/FastLED/FastLED */
 
 // Defines for the Device
-#define NR_OF_LEDS        299
 
-#define STRIP_TYPE        WS2812B   // Your strip model
-#define COLOR_TYPE        GRB       // My strip switches red and green
+#define IS_WALL
 
-#define DATA_PIN          5
-// #define CLOCK_PIN         0         // Use this if your strip has two lines
+#ifdef IS_WALL
+#define STRIP_TYPE        WS2801  // Your strip model
+#define COLOR_TYPE        BGR
+#define CLOCK_PIN         1       // Use this if your strip has two lines
+#define DATA_PIN          3       // The data line of the strip
+#define NR_OF_LEDS        128
+#define NR_LED_CHANGE     85
+#else
+#define STRIP_TYPE        WS2812B
+#define COLOR_TYPE        GRB     // My strip switches red and green
+#define NR_OF_LEDS        297
+#define DATA_PIN          3       // The data line of the strip
+#endif
+
 
 #define UDP_DEFAULT_PORT  8000
 #define SERVER_PORT       80

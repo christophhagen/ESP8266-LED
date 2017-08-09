@@ -22,12 +22,6 @@ CRGB colors[NR_OF_LEDS];        // Array with colors for the leds
 CHSV endHSV;                    // HSV representation of current color
 CHSV defaultHSV;                // The default color to go to
 
-void printCurrentColor(CRGB color) {
-    char mess[15];
-    sprintf(mess, "%03d,%03d,%03d", color.r, color.g, color.b);
-    Serial.println(mess);
-}
-
 /* Scheduler functions */
 void blendColor();
 void receiveUDPPacket();
@@ -74,11 +68,11 @@ void setEnable(uint8_t newStatus) {
     switch (newStatus) {
         case 0:
         disable();
-        break;
+        return;
 
         case 1:
         enable();
-        break;
+        return;
 
         default:
         toggle();
@@ -111,8 +105,18 @@ void blendColor() {
             cur.raw[i] += (cur.raw[i] > endRGB.raw[i]) ? -1 : 1;
         }
     }
+
+#ifdef IS_WALL
+    for(uint8_t i = 0; i < NR_LED_CHANGE; i++) {
+        colors[i] = cur;
+    }
+    for(uint8_t i = NR_LED_CHANGE; i < NR_OF_LEDS; i++) {
+        colors[i] = CRGB(cur.b, cur.g, cur.r);
+    }
+    FastLED.show();
+#else
     FastLED.showColor(cur);
-    printCurrentColor(cur);
+#endif
 
     if (cur == endRGB) { // Check for end of fade
         blendTask.disable();
@@ -158,18 +162,16 @@ void receiveUDPPacket() {
 Set up UDP, WIFI, LEDs, Serial and Web server
 */
 void setup() {
-    Serial.begin(115200); // For debugging purposes
-    Serial.println("Starting");
-
-    readDefaultColor();
-
-    #ifdef CLOCK_PIN
+    #ifdef IS_WALL
     FastLED.addLeds<STRIP_TYPE, DATA_PIN, CLOCK_PIN, COLOR_TYPE>(colors, NR_OF_LEDS);
     #else
     FastLED.addLeds<STRIP_TYPE, DATA_PIN, COLOR_TYPE>(colors, NR_OF_LEDS);
     #endif
 
     FastLED.showColor(CRGB(0,0,0));
+
+    readDefaultColor();
+
     WiFi.begin(ssid, pass);
     setupServer();
     udp.begin(UDP_DEFAULT_PORT);
