@@ -96,8 +96,4 @@ public:
     }
 };
 
-/* Initialize static members */
-Task* Task::first = 0;
-Task* Task::currentTask = 0;
-
 #endif
