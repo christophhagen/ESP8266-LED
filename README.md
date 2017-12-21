@@ -1,14 +1,14 @@
 # ESP8266-LED
 
-A simple program to control an LED strip connected to a ESP8266 chip. Provides a URL interface and a UDP interface to easily set the color of the strip. I use it together with a [homebridge plug-in](https://github.com/christophhagen/homebridge-ESP-HSV) to control my room lighting with Siri.
+A simple program to control one or multiple LED strips connected to an ESP8266 chip. Provides a URL/UDP interface to easily set the color of the strip. I use it together with a [homebridge plug-in](https://github.com/christophhagen/homebridge-ESP-HSV) to control my room lighting with Siri.
 
 ## Setup
 
-1. Use [PlatformIO](http://platformio.org) (or equivalent software) to connect to your `ESP8266`.
+1. Use [PlatformIO](http://platformio.org) (or equivalent software) to connect to your `ESP8266`. This project uses the [Arduino Core](https://github.com/esp8266/Arduino/blob/master/doc/reference.md) for the ESP8266.
 
-2. Set your device parameters and Wifi credentials in `customize.h`
+2. Set your device parameters and Wifi credentials in `customize.h`.
 
-3. Create the devices you want to use in `customize.cpp`
+3. Create the devices you want to use in `customize.cpp`.
 
 3. Compile and upload the code to your chip.
 
@@ -56,13 +56,17 @@ For example, setting the hue to 234 on the device `MyDevice`:
 
 ### UDP
 
+For UDP the first byte to send is the device identifier, which corresponds to the order in which the devices are added through `addDevice()`. The following bytes can be:
+
 | Function       | Packet length | Included data                                  |
 | -------------- |:------------- |:---------------------------------------------- |
 | Set on/off     | 1 byte        | on: > 0, off: 0                                |
 | Set hue        | 2 byte        | First byte: 0, Second byte: hue (0-255)        |
 | Set saturation | 2 byte        | First byte: 1, Second byte: saturation (0-255) |
 | Set brightness | 2 byte        | First byte: 2, Second byte: brightness (0-255) |
-| Set HSB color  | 3 byte        | hue, saturation, brightness (each 1 byte)      |
+| Set HSV color  | 3 byte        | hue, saturation, brightness (each 1 byte)      |
+
+An example request to set the HSV color of a device with identifier `0` to `hue = 123, saturation = 234, brightness = 45` would simply be: `[0, 123,234,45]`
 
 ## Thanks
 

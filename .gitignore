@@ -3,3 +3,4 @@
 .gcc-flags.json
 .piolibdeps
 .DS_Store
+.piolibdeps
