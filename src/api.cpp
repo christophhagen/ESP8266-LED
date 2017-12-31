@@ -6,7 +6,8 @@
 // SERVER - https://links2004.github.io/Arduino/d3/d58/class_e_s_p8266_web_server.html
 #include <ESP8266WebServer.h>
 
-#include <WiFiUdp.h>            // https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiUdp.h
+// UDP - https://github.com/esp8266/Arduino/blob/master/libraries/ESP8266WiFi/src/WiFiUdp.h
+#include <WiFiUdp.h>
 
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
@@ -58,23 +59,38 @@ static void setDefaultColor(Device* device, String str) {
     writeDefaultColor(device, color);
 }
 
-void get() {
+void process(void (*function) (Device*, uint8_t command)) {
     // Get device or cancel request
-    Device* device = getDevice(server.arg("d").c_str());
+    if (!server.hasArg("d")) {
+        server.send(400, "text/plain", "No device specified, use '?d='");
+        return;
+    }
+    Device* device = getDeviceById(strtol(server.arg("d").c_str(),NULL,10));
     if (device == 0) {
-        // TODO: Send error
+        server.send(400, "text/plain", "Invalid device specified");
         return;
     }
     // Get command or cancel request
-    const char* command = server.arg("c").c_str();
-    if (strlen(command) != 1) {
-        // TODO: Send error
+    if (!server.hasArg("c")) {
+        server.send(400, "text/plain", "No command specified, use '?c='");
         return;
     }
+    String commandString = server.arg("c");
+    if (strlen(commandString.c_str()) != 1) {
+        server.send(400, "text/plain", "Invalid command specified, use '?c='");
+        return;
+    }
+    uint8_t command = commandString.c_str()[0];
+    function(device, command);
+}
 
-    char mess[8];
+static char mess[40];
+
+void get(Device* device, uint8_t command) {
+
     // Execute command
-    switch (command[0]) {
+    switch (command) {
+        case 'i': deviceInfo(mess, device); break;
         // Enabled
         case 'e': sprintf(mess, device->enabled ? "1" : "0"); break;
 
@@ -89,54 +105,63 @@ void get() {
         case 'g': printRGB(device->endHSV, 1, mess); break;
         case 'b': printRGB(device->endHSV, 2, mess); break;
         default:
-        // TODO: Send error
+        server.send(400, "text/plain", "Unknown command");
         return;
     }
     server.send(200, "text/plain", mess);
 }
 
-void set() {
-    // Get device or cancel request
-    Device* device = getDevice(server.arg("d").c_str());
-    if (device == 0) {
-        // TODO: Send error
-        return;
-    }
-    // Get command or cancel request
-    const char* command = server.arg("c").c_str();
-    if (strlen(command) != 1) {
-        // TODO: Send error
-        return;
-    }
-    // Get value or cancel request
-    String valueString = server.arg("v");
-    const char* value = valueString.c_str();
-    if (strlen(command) == 0) {
-        // TODO: Send error
-        return;
-    }
-    // Execute command
-    switch (command[0]) {
-        // Enabled
-        case 'e': enable(device); break;
-        case 'o': disable(device); break; // OFF
-        case 't': toggle(device); break;
+// Wrapper function to handle getting variables
+void handleGet() {
+    process(get);
+}
 
-        case 'h': setParamHSV(device, 0, value[0]); break;
-        case 's': setParamHSV(device, 1, value[0]); break;
-        case 'v': setParamHSV(device, 2, value[0]); break;
+void set(Device* device, uint8_t command) {
+    // Some command require values
+    if (server.hasArg("v")) {
+        Serial.println("Has value");
+        // Get value or cancel request
+        String valueString = server.arg("v");
+        // Parse value argument as hex number
+        uint8_t value = strtol(valueString.c_str(), NULL, 16);
+        // Execute command
+        switch (command) {
+            case 'a': setEnable(device, value); break; // ACTIVATE
 
-        case 'c': setColor(device, valueString); break;
-        case 'd': setDefaultColor(device, valueString); break;
+            case 'h': setParamHSV(device, 0, value); break;
+            case 's': setParamHSV(device, 1, value); break;
+            case 'v': setParamHSV(device, 2, value); break;
 
-        case 'r': setParamRGB(device, 0, value[0]); break;
-        case 'g': setParamRGB(device, 1, value[0]); break;
-        case 'b': setParamRGB(device, 2, value[0]); break;
-        default:
-        // TODO: Send error
-        return;
+            case 'c': setColor(device, valueString); break;
+            case 'd': setDefaultColor(device, valueString); break;
+
+            case 'r': setParamRGB(device, 0, value); break;
+            case 'g': setParamRGB(device, 1, value); break;
+            case 'b': setParamRGB(device, 2, value); break;
+            default:
+            server.send(400, "text/plain", "Unknown command");
+            return;
+        }
+    } else {
+        Serial.println("No value");
+        // Execute commands without values
+        switch (command) {
+            // Enabled
+            case 'e': enable(device); break;
+            case 'o': disable(device); break; // OFF
+            case 't': toggle(device); break;
+            default:
+            server.send(400, "text/plain", "Unknown command, or no value specified");
+            return;
+        }
     }
     server.send(200, "text/plain", "ok");
+}
+
+// Wrapper function to handle setting variables
+void handleSet() {
+    Serial.println("Received command");
+    process(set);
 }
 
 /**
@@ -150,7 +175,6 @@ Other packets will be ignored
 void receiveUDPPacket() {
     uint16_t bytes = udp.parsePacket();
     if (bytes == 0) {
-        udp.flush();
         return;
     }
     // Get device or cancel request
@@ -162,6 +186,10 @@ void receiveUDPPacket() {
     uint8_t param;
     CHSV color;
     switch (bytes) {
+        case 1:
+        toggle(device);
+        break;
+
         case 2:
         setEnable(device, udp.read());
         break;
@@ -183,25 +211,31 @@ void receiveUDPPacket() {
     udp.flush();
 }
 
-/* Server function for unknown urls */
+/**
+ Server function for unknown urls
+ */
 static void handleNotFound() {
     server.send(404, "text/plain", "Page doesn't exist");
 }
 
-/* Set up the API, UDP, WIFI, and web server */
+/**
+ Set up the API, UDP, WIFI, and web server
+ */
 void setup() {
     setupLEDs();
     WiFi.begin(ssid, pass);
 
     server.onNotFound(handleNotFound);
-    server.on("/get", get);
-    server.on("/set", set);
+    server.on("/get", handleGet);
+    server.on("/set", handleSet);
 
     server.begin();
     udp.begin(UDP_DEFAULT_PORT);
 }
 
-/* This function is called regularly to handle url requests */
+/**
+ This function is called regularly to handle url requests
+ */
 void handleClient() {
     server.handleClient();
 }

@@ -12,27 +12,23 @@
 #define BED_NR_OF_LEDS    40
 #define BED_DATA_PIN      14
 
-
 CRGB wall_colors[WALL_NR_OF_LEDS]; // Array with colors for the leds
 CRGB bed_colors[BED_NR_OF_LEDS];   // Array with colors for the leds
 
 void setupLEDs() {
-
     CLEDController &wall_controller = FastLED.addLeds<STRIP_TYPE, WALL_DATA_PIN, COLOR_TYPE>(wall_colors, WALL_NR_OF_LEDS);
     Device wall_device = {
-        "Wall",
         wall_colors,
         WALL_NR_OF_LEDS,
-        wall_controller
+        &wall_controller
     };
     addDevice(wall_device);
 
     CLEDController &bed_controller = FastLED.addLeds<STRIP_TYPE, BED_DATA_PIN, COLOR_TYPE>(bed_colors, WALL_NR_OF_LEDS);
     Device bed_device = {
-        "Bed",
         bed_colors,
         BED_NR_OF_LEDS,
-        bed_controller
+        &bed_controller
     };
     addDevice(bed_device);
 }

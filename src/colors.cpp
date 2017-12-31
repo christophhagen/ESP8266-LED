@@ -10,8 +10,24 @@ void blendColors();
 
 Task blendTask(blendColors, EX_TIME, false);
 
-static Device* devices[DEVICES_MAX];
+static Device devices[DEVICES_MAX];
 static uint8_t deviceCount = 0;
+
+const char* deviceInfo(char* mess, Device* device) {
+    sprintf(mess, "%02d: %s RGB: (%03d,%03d,%03d)",
+    device->index,
+    device->enabled ? "enabled " : "disabled",
+    device->endRGB[0], device->endRGB[1], device->endRGB[2]);
+}
+
+void printDeviceInfo() {
+    Serial.print(deviceCount);
+    Serial.println(" devices registered");
+    char mess[40];
+    for (uint8_t i = 0; i < deviceCount; i += 1) {
+        Serial.println(deviceInfo(mess, &devices[i]));
+    }
+}
 
 /**
 Set the color to use when when the device is booted up. This will only influence
@@ -41,45 +57,46 @@ void addDevice(Device device) {
     if (deviceCount == DEVICES_MAX) {
         return;
     }
-    devices[deviceCount] = &device;
-    device.controller.showColor(CRGB(0,0,0));
-    device.enabled = 0;
-    readDefaultColor(&device);
     device.index = deviceCount;
+    device.controller->showColor(CRGB(0,0,0));
+    device.blending = false;
+    device.enabled = false;
+    readDefaultColor(&device);
+    devices[deviceCount] = device;
     deviceCount += 1;
-}
-
-Device* getDevice(const char* name) {
-    for (uint8_t i = 0; i < deviceCount; i += 1) {
-        if (strcmp(devices[i]->name, name) == 0) {
-            return devices[i];
-        }
-    }
-    return 0;
 }
 
 Device* getDeviceById(uint8_t id) {
     if (id >= deviceCount) {
         return 0;
     }
-    return devices[id];
+    return &devices[id];
 }
 
+void startBlend(Device* device) {
+    device->blending = true;
+    Serial.println("Start blending");
+    blendTask.enable(); // Start blending
+}
 
 void enable(Device* device) {
-    device->enabled = 1;
-    device->endRGB = CRGB(device->endHSV);
-    if (device->endRGB == CRGB(0,0,0)) { // Set to default if enabled but color is 0
+    if (device->enabled) {
+        return;
+    }
+    device->enabled = true;
+    if (device->endRGB == CRGB(0,0,0)) {
         device->endHSV = device->defaultColor;
         device->endRGB = CRGB(device->defaultColor);
     }
-    blendTask.enable(); // Start blending
+    startBlend(device);
 }
 
 void disable(Device* device) {
-    device->enabled = 0;
-    device->endRGB = CRGB(0,0,0);
-    blendTask.enable(); // Start blending
+    if (!device->enabled) {
+        return;
+    }
+    device->enabled = false;
+    startBlend(device);
 }
 
 void toggle(Device* device) {
@@ -99,67 +116,69 @@ void setEnable(Device* device, uint8_t newStatus) {
     }
 }
 
+void didSetParam(Device* device) {
+    // Turn strip off if brightness is 0
+    if (device->endRGB == CRGB(0,0,0)) {
+        device->enabled = false;
+    } else {
+        device->enabled = true;
+
+    }
+    startBlend(device);
+}
+
 /*
 Set one parameter of a HSV color from a string.
 */
 void setParamHSV(Device* device, uint8_t type, uint8_t value) {
     device->endHSV.raw[type] = value;
-    // Turn strip off if brightness is 0
-    if (device->endHSV.value == 0) {
-        disable(device);
-    } else {
-        device->endRGB = CRGB(device->endHSV); // Set end color
-        device->enabled = 1;
-        blendTask.enable(); // Start blending
-    }
+    device->endRGB = CRGB(device->endHSV);
+    didSetParam(device);
 }
 
 void setParamRGB(Device* device, uint8_t type, uint8_t value) {
-    device->endRGB.raw[type] = value;
-    device->enabled = 1;
-    blendTask.enable(); // Start blending
+    device->endRGB[type] = value;
+    didSetParam(device);
 }
 
 /* Set necessary values for blending and start */
 void setHSV(Device* device, CHSV color) {
     device->endHSV = color;
-
-    // Turn strip off, if brightness is 0
-    if (color.value == 0) {
-        disable(device);
-    } else {
-        device->endRGB = CRGB(color); // Set end color
-        enable(device);
-    }
+    device->endRGB = CRGB(device->endHSV);
+    didSetParam(device);
 }
-
 
 /* Small steps towards the end color */
 void blendColor(Device* device) {
+    if (!device->blending) {
+        return;
+    }
+
+    CRGB current = device->currentRGB;
+    CRGB end = device->enabled ? device->endRGB : CRGB(0,0,0);
+
     // blend rgb, 1 step per channel
     for (uint8_t i = 0; i < 3; i++) {
-        if (device->currentRGB.raw[i] != device->endRGB.raw[i]) {
-            if (device->currentRGB.raw[i] > device->endRGB.raw[i]) {
-                device->currentRGB.raw[i] -= 1;
-            } else {
-                device->currentRGB.raw[i] += 1;
-            }
+        if (current[i] != end[i]) {
+            current[i] += (current[i] > end[i]) ? -1 : 1;
         }
     }
-    device->controller.showColor(device->currentRGB);
+    device->currentRGB = current;
+    device->controller->showColor(current);
 
-    if (device->currentRGB == device->endRGB) { // Check for end of fade
-        device->enabled = 0;
+    if (current == end) { // Check for end of fade
+        device->blending = false;
     }
 }
 
 void blendColors() {
-    uint8_t enabled = 0;
+    bool blending = false;
     for (uint8_t i = 0; i < deviceCount; i += 1) {
-        blendColor(devices[i]);
-        enabled |= devices[i]->enabled;
+        blendColor(&devices[i]);
+        blending |= devices[i].blending;
     }
-    if (!enabled) {
+    if (!blending) {
+        Serial.println("Stop blending");
         blendTask.disable();
     }
 }
